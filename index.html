@@ -316,8 +316,8 @@ canvas { display: block; width: 100%; height: 100%; }
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// ── Données ──────────────────────────────────────────────────
-let segments = ['🍋 vijay','💎 noé','🔥 terrence','💀 pierre','⭐ ajay','🎁 arthur','🃏 rayan','🪙 nathan','🪙 ezeckiel'];
+// ── Données initiales ────────────────────────────────────────
+let segments = ['🍋 rayan','💎 pierre','🔥 terrence','💀 arthur','⭐ ajay','⭐ vijay','🃏 noe','🪙 ezeckiel'];
 let angle = 0;
 let spinning = false;
 let spinCount = 0;
@@ -331,17 +331,7 @@ const COLORS = [
   '#5C3D0A', // brun doré
   '#1A3A4A', // bleu-gris
   '#4A1A1A', // rouge sombre
-  '#0A3A2E', // émeraude
-  '#3A1A4A', // pourpre
-  '#1A4A3A', // sarcelle
-  '#5C1A1A', // écarlate
-  '#1A2A4A', // marine
-];
-
-const TEXT_COLORS = [
-  '#FFB3B3','#90EE90','#87CEEB','#DDA0DD',
-  '#F5DEB3','#B0D4E8','#FFA07A','#98FB98',
-  '#C8A2C8','#7FFFD4','#FF8C8C','#87CEFA',
+  '#0A3A2E'  // émeraude
 ];
 
 // ── Canvas principal ─────────────────────────────────────────
@@ -418,7 +408,7 @@ function draw(a) {
 
   // Rayons séparateurs dorés
   for (let i = 0; i < n; i++) {
-    const lineA = a + i * (Math.PI*2/n);
+    const lineA = a + i * arc;
     ctx.beginPath();
     ctx.moveTo(cx + Math.cos(lineA)*30, cy + Math.sin(lineA)*30);
     ctx.lineTo(cx + Math.cos(lineA)*R, cy + Math.sin(lineA)*R);
@@ -429,12 +419,11 @@ function draw(a) {
 
   // Hub central
   const hubR = SZ * 0.09;
-  // Cercle sombre
   ctx.beginPath();
   ctx.arc(cx, cy, hubR + 4, 0, Math.PI*2);
   ctx.fillStyle = '#1a0a00';
   ctx.fill();
-  // Dégradé doré
+
   const hubG = ctx.createRadialGradient(cx-hubR*.3, cy-hubR*.3, 1, cx, cy, hubR);
   hubG.addColorStop(0, '#F5D98B');
   hubG.addColorStop(0.5, '#D4A843');
@@ -447,7 +436,6 @@ function draw(a) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Étoile sur le hub
   drawStar(ctx, cx, cy, 6, hubR*0.55, hubR*0.25, 'rgba(0,0,0,0.2)');
 }
 
@@ -475,131 +463,98 @@ function lighten(hex, amount) {
   return `rgb(${r},${g},${b})`;
 }
 
-// ── Animation spin ───────────────────────────────────────────
-function spinToSegment(winIndex, onDone) {
-  const n = segments.length;
-  const arc = (Math.PI * 2) / n;
-  const targetAngle = -(winIndex * arc + arc / 2);
-  const currentMod = ((angle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-  const targetMod  = ((targetAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-  let delta = targetMod - currentMod;
-  if (delta < 0) delta += Math.PI * 2;
-  const totalRot = Math.PI * 2 * 10 + delta;
-
+// ── Nouvelle Animation synchronisée avec l'angle de index.js ──
+function runServerSpin(finalAngle, onDone) {
+  const startAngle = angle; 
+  const totalRot = finalAngle - (startAngle % (Math.PI * 2)); 
+  const dur = 6000; 
   const t0 = performance.now();
-  const dur = 6000;
-  function easeOut(t) { return 1 - Math.pow(1-t, 4.5); }
+  
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4.5); }
 
-  // Sons de tick
-  let lastTickAngle = angle;
-  const arcSize = (Math.PI*2)/n;
+  let lastTickAngle = startAngle;
+  const arcSize = (Math.PI * 2) / segments.length;
 
   function frame(now) {
     const p = Math.min((now - t0) / dur, 1);
-    angle = angle + (totalRot * easeOut(p)) - (totalRot * easeOut(Math.max(0, p - 0.016)));
-
-    // Tick
-    if (angle - lastTickAngle >= arcSize) {
-      lastTickAngle += arcSize;
-      const speed = totalRot * 4 * Math.pow(1-p, 3.5);
-      if (speed > 0.3) playTick(speed);
-    }
-
-    // Vibration aiguille
-    if (p > 0.8) {
-      const shk = (1-p) * 6;
-      document.querySelector('.needle').style.transform =
-        `translateY(calc(-50% + ${(Math.random()-.5)*shk}px))`;
-    }
-
-    draw(angle);
-    if (p < 1) requestAnimationFrame(frame);
-    else {
-      document.querySelector('.needle').style.transform = 'translateY(-50%)';
-      onDone();
-    }
-  }
-
-  // Reset angle tracking pour ce spin
-  const startAngle = angle;
-  let lastP = 0;
-  angle = startAngle; // garder angle global cohérent
-
-  const t0_ = performance.now();
-  function frame2(now) {
-    const p = Math.min((now - t0_) / dur, 1);
     const eased = easeOut(p);
-    const prevEased = easeOut(lastP);
-    angle += totalRot * (eased - prevEased);
-    lastP = p;
+    
+    angle = startAngle + totalRot * eased;
 
     if (angle - lastTickAngle >= arcSize) {
       lastTickAngle += arcSize;
-      const speed = totalRot * 4 * Math.pow(1-p, 3.5);
+      const speed = totalRot * 4 * Math.pow(1 - p, 3.5);
       if (speed > 0.3) playTick(speed);
     }
 
     if (p > 0.8) {
-      const shk = (1-p) * 5;
+      const shk = (1 - p) * 5;
       document.querySelector('.needle').style.transform =
-        `translateY(calc(-50% + ${(Math.random()-.5)*shk}px))`;
+        `translateY(calc(-50% + ${(Math.random() - .5) * shk}px))`;
     }
 
     draw(angle);
-    if (p < 1) requestAnimationFrame(frame2);
-    else {
+
+    if (p < 1) {
+      requestAnimationFrame(frame);
+    } else {
       document.querySelector('.needle').style.transform = 'translateY(-50%)';
       onDone();
     }
   }
-  requestAnimationFrame(frame2);
+  requestAnimationFrame(frame);
 }
 
+// Bloque l'exécution en local pour forcer l'usage du bot Discord
 function localSpin() {
-  if (spinning || segments.length < 2) return;
-  spinning = true;
-  document.getElementById('spinBtn').disabled = true;
-  document.getElementById('result').textContent = '✦';
-  document.getElementById('result').classList.remove('pop');
-  playLaunch();
-  const winIndex = Math.floor(Math.random() * segments.length);
-  spinToSegment(winIndex, () => {
-    spinning = false;
-    document.getElementById('spinBtn').disabled = false;
-    showResult(segments[winIndex]);
-  });
+  alert("Utilisez la commande slash /spin directement sur Discord pour lancer la roue !");
 }
 
-// ── Socket ───────────────────────────────────────────────────
+// ── Sockets synchronisés ─────────────────────────────────────
 const socket = io();
+
 socket.on('connect', () => { document.getElementById('liveStatus').textContent = 'En direct'; });
 socket.on('disconnect', () => { document.getElementById('liveStatus').textContent = 'Déconnecté'; });
-socket.on('wheel-update', data => { segments = data.segments; draw(angle); });
+
+socket.on('wheel-update', data => { 
+  segments = data.segments; 
+  draw(angle); 
+});
+
 socket.on('spin-start', data => {
   if (spinning) return;
   spinning = true;
   segments = data.segments;
+  
   document.getElementById('spinBtn').disabled = true;
   document.getElementById('result').textContent = '✦';
   document.getElementById('result').classList.remove('pop');
+  
   playLaunch();
-  spinToSegment(data.winIndex, () => {
+  
+  runServerSpin(data.finalAngle, () => {
     spinning = false;
     document.getElementById('spinBtn').disabled = false;
   });
 });
-socket.on('spin-result', data => { setTimeout(() => showResult(data.result), 350); });
 
-// ── Résultat ─────────────────────────────────────────────────
+socket.on('spin-result', data => { 
+  setTimeout(() => showResult(data.result), 50); 
+});
+
+// ── Résultat et FX ───────────────────────────────────────────
 function showResult(text) {
   const rv = document.getElementById('result');
   rv.textContent = '✦ ' + text + ' ✦';
   void rv.offsetWidth;
   rv.classList.add('pop');
+  
   spinCount++;
   document.getElementById('counter').textContent = `Invocation nº ${spinCount}`;
+  
   document.getElementById('flash').style.opacity = '1';
   setTimeout(() => { document.getElementById('flash').style.opacity = '0'; }, 180);
+  
   playWin();
   launchConfetti();
 }
@@ -617,7 +572,7 @@ function launchConfetti() {
   setTimeout(() => c.innerHTML = '', 4500);
 }
 
-// ── Sons ─────────────────────────────────────────────────────
+// ── Générateurs Audio (Oscillateurs) ─────────────────────────
 let AC;
 function getAC() {
   if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
@@ -666,7 +621,7 @@ function playWin() {
   } catch(e) {}
 }
 
-// ── Fond étoilé ───────────────────────────────────────────────
+// ── Fond étoilé dynamique ────────────────────────────────────
 (function() {
   const c = document.getElementById('stars');
   const bx = c.getContext('2d');
@@ -674,7 +629,6 @@ function playWin() {
   function init() {
     W = c.width = window.innerWidth;
     H = c.height = window.innerHeight;
-    c.style.cssText = 'position:fixed;inset:0;z-index:0;pointer-events:none;';
     stars = Array.from({length:140}, () => ({
       x: Math.random()*W, y: Math.random()*H,
       r: Math.random()*1.2+.2,
@@ -690,16 +644,14 @@ function playWin() {
       s.a += s.spd; if(s.a>1) s.a=0;
       const alpha = Math.sin(s.a*Math.PI) * 0.6;
       bx.beginPath(); bx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      bx.fillStyle = s.gold
-        ? `rgba(212,168,67,${alpha})`
-        : `rgba(242,232,208,${alpha*0.5})`;
+      bx.fillStyle = s.gold ? `rgba(212,168,67,${alpha})` : `rgba(242,232,208,${alpha*0.5})`;
       bx.fill();
     });
     requestAnimationFrame(loop);
   })();
 })();
 
-// ── Init ──────────────────────────────────────────────────────
+// Premier rendu à l'ouverture de l'écran
 draw(angle);
 </script>
 </body>
