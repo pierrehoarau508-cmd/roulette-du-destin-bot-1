@@ -6,7 +6,7 @@ const io = require('socket.io')(http);
 app.use(express.static(__dirname)); // Sert votre index.html
 
 io.on('connection', (socket) => {
-    console.log('Un utilisateur s'est connecté');
+    console.log("Un utilisateur s'est connecté");
     // C'est ici que votre bot Discord enverra les événements 'wheel-update' ou 'spin-start'
 });
 
